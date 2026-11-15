@@ -61,7 +61,7 @@ export function Landing({ t, isAbout, exploreHref }: {
           </div>
           <div>
             <strong>{t.sourceCode}</strong>
-            <p><a href="https://github.com/hermes77-7/StarDrift">{t.viewSource} <span aria-hidden="true">↗</span></a></p>
+            <p><a href="https://github.com/hermes77-7/StarDriftx">{t.viewSource} <span aria-hidden="true">↗</span></a></p>
           </div>
         </div>
       </footer>
