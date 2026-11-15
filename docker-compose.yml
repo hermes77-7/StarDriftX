@@ -1,0 +1,39 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    ports:
+      - "127.0.0.1:${STARDRIFT_BACKEND_PORT:-8000}:8000"
+    environment:
+      STARDRIFT_CACHE_ADMIN_TOKEN: ${STARDRIFT_CACHE_ADMIN_TOKEN:-}
+      STARDRIFT_RELEASE_CHECK_SECONDS: ${STARDRIFT_RELEASE_CHECK_SECONDS:-3600}
+      STARDRIFT_REQUESTS_PER_MINUTE: ${STARDRIFT_REQUESTS_PER_MINUTE:-60}
+      STARDRIFT_EPOCH_WINDOWS: '${STARDRIFT_EPOCH_WINDOWS:-}'
+    volumes:
+      - ./backend/app:/app/backend/app
+      - stardrift-cache:/app/backend/data/cache
+    healthcheck:
+      test: [CMD, python, -c, "from urllib.request import urlopen; urlopen('http://127.0.0.1:8000/api/health', timeout=2).close()"]
+      interval: 3s
+      timeout: 3s
+      start_period: 5s
+      retries: 10
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    ports:
+      - "127.0.0.1:${STARDRIFT_FRONTEND_PORT:-5173}:5173"
+    environment:
+      API_PROXY_TARGET: http://backend:8000
+    volumes:
+      - ./frontend/src:/app/frontend/src
+      - ./frontend/public:/app/frontend/public
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  stardrift-cache:

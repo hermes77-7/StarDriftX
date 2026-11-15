@@ -1,0 +1,40 @@
+{
+  "data_release": "spherex_qr3",
+  "coverage_notes": "Mock metadata for the bundled QR3 Scope cutout. The time range describes the fixture exposures.",
+  "fov_limits": {
+    "min_deg": 0.05,
+    "max_deg": 1.0,
+    "default_deg": 0.2
+  },
+  "supported_bands": {
+    "total_bands": 102,
+    "detectors": 6,
+    "channels_per_detector": 17,
+    "wavelength_range_um": [
+      0.75,
+      5.0
+    ]
+  },
+  "epochs": [
+    {
+      "id": "4",
+      "name": "Survey 4 (Scope fixture)",
+      "time_range": {
+        "mjd_start": 61186.359738,
+        "mjd_end": 61186.361248,
+        "utc_start": "2026-05-26T08:38:01.363200Z",
+        "utc_end": "2026-05-26T08:40:11.827200Z"
+      }
+    },
+    {
+      "id": "all",
+      "name": "All Epochs Combined",
+      "time_range": {
+        "mjd_start": 61186.359738,
+        "mjd_end": 61186.361248,
+        "utc_start": "2026-05-26T08:38:01.363200Z",
+        "utc_end": "2026-05-26T08:40:11.827200Z"
+      }
+    }
+  ]
+}

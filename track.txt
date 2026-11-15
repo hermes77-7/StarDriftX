@@ -1,0 +1,47 @@
+================================================================================
+STAR DRIFT - DEVELOPER C TASK TRACKER
+Role: Platform, Catalogs, and Panels
+================================================================================
+
+[x] S1 · Repository, CI, and conventions
+    - Monorepo scaffold (backend/, frontend/, shared/, docs/)
+    - Linters & formatters (Ruff, ESLint, Prettier)
+    - GitHub Actions CI pipeline (.github/workflows/ci.yml)
+    - Docker Compose local development environment (docker-compose.yml)
+    - Smoke health endpoint (/api/health) and frontend smoke test verified passing
+
+[x] S3 · API contract and mock server
+    - OpenAPI 3.1 specification for all Section 8 endpoints (shared/openapi.yaml & shared/openapi.json)
+    - Standard JSON error schema with typed error codes
+    - TypeScript definitions (shared/types/api.ts & frontend/src/types/api.ts)
+    - SPX1 binary payload encoder/decoder in Python & TypeScript with gzip decompressor
+    - Real SPHEREx QR3 spike fixtures & synthetic test vectors in shared/fixtures/mock/
+    - Mock API endpoints implemented in backend/app/mock_router.py & shared/mock_server.mjs
+    - Frontend vitest test suites (16 tests across 4 files) passing cleanly
+
+[x] C1 · Cache layer
+    - HEALPix spherical indexing engine with pole & RA 0/360 wrap-around support
+    - FoV quantization & bucketing (0.05, 0.10, 0.20, 0.50, 1.00 deg)
+    - Deterministic key builder: release, HEALPix tile, FoV bucket, epoch, band/detector mode, mask
+    - DiskCache backend with LRU size-capped eviction and configurable max_size_bytes
+    - S3-compatible cloud storage adapter (backend/app/cache/s3.py) with automatic disk fallback
+    - MemoryCache backend for unit testing and ephemeral environments
+    - CacheManager with ETag generation, Cache-Control headers, and If-None-Match (304) handling
+    - Data release invalidator purging old releases on archive updates
+    - 10 automated unit tests (scripts/test_cache_layer.py) verifying all acceptance criteria
+
+[-] C2 · /api/meta and release detection (NEXT)
+    - Return current data release ID (e.g. spherex_qr3), FoV limits, band mappings, epoch defs
+    - Periodic background check / detection of updated data release to trigger C1 invalidation
+
+[ ] C3 · Validation, errors, rate limiting, logging (Pydantic models, rate limiter, audit logs)
+[ ] C4 · /api/catalog (Gaia, WISE, SIMBAD cone queries with mag cuts & graceful fallback)
+[ ] C5 · /api/resolve (Object name resolution to ICRS coordinates via SIMBAD/Sesame)
+[ ] C6 · Search box component (Frontend coordinate parsing & autocomplete input)
+[ ] C7 · Metadata panel and source card UI (Header metadata display & nearest source card)
+[ ] C8 · Aladin Lite context panel (Synchronized pan/zoom sky background viewer)
+[ ] C9 · Spectrum plot component (0.75-5.0 µm interactive chart, shaded detectors, CSV export)
+[ ] C10 · Embed mode and sharing (embed=1 layout, iframe generator, URL link copier)
+[ ] C11 · Deployment and CDN (Containerization, staging pipeline, CDN caching rules, alerts)
+[ ] C13 · End-to-end, performance, and accessibility tests (Automated E2E tests & benchmarks)
+[ ] C12 · Solar-system ephemeris (Optional: JPL Horizons / SkyBoT moving object overlay)

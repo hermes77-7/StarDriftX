@@ -1,0 +1,29 @@
+{
+  "width": 36,
+  "height": 36,
+  "wcs": {
+    "projection": "TAN",
+    "frame": "ICRS",
+    "referencePixel": [
+      18.5,
+      18.5
+    ],
+    "referenceDegrees": [
+      150.12,
+      2.34
+    ],
+    "degreesPerPixel": [
+      -0.0017083333333333,
+      0.0017083333333333
+    ]
+  },
+  "release": "QR3",
+  "unit": "MJy/sr",
+  "detector": 1,
+  "channel": 4,
+  "wavelengthMicrons": 0.809,
+  "exposureMjd": [
+    61186.359737998,
+    61186.361248021
+  ]
+}

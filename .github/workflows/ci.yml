@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version-file: .python-version
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - run: pip install -r requirements.txt
+      - run: ruff check .
+      - run: ruff check --config ruff.toml ../scripts
+      - run: pytest
+      - name: Check shared payload and cache contracts
+        working-directory: .
+        env:
+          PYTHONPATH: backend
+        run: python -m unittest scripts.test_shared_contract scripts.test_cache_layer
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+
+  compose-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker compose up --build --wait --wait-timeout 60
+      - name: Verify frontend and API proxy
+        run: |
+          curl --fail --silent --show-error --retry 10 --retry-connrefused http://127.0.0.1:5173/ | grep -F '<title>Star Drift</title>'
+          curl --fail --silent --show-error http://127.0.0.1:5173/api/health | grep -F '"status":"ok"'
+          curl --fail --silent --show-error http://127.0.0.1:5173/api/meta | grep -F '"data_release":"spherex-live-v1-'
+      - if: failure()
+        run: docker compose logs
+      - if: always()
+        run: docker compose down

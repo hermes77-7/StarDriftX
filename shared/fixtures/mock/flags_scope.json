@@ -1,0 +1,16 @@
+{
+  "categories_present": [
+    "known_source",
+    "halo"
+  ],
+  "total_pixels": 1296,
+  "flagged_pixels": 16,
+  "flag_summary": {
+    "known_source": 16,
+    "halo": 1
+  },
+  "bitmask_definitions": {
+    "21": "SOURCE: Known catalog source",
+    "28": "HALO: Optical halo artifact"
+  }
+}

@@ -1,0 +1,8 @@
+FROM python:3.14-slim
+WORKDIR /app/backend
+COPY backend/requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+COPY backend/app/ ./app/
+COPY shared/fixtures/mock/ /app/shared/fixtures/mock/
+COPY shared/openapi.json /app/shared/openapi.json
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]

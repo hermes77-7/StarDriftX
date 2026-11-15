@@ -1,0 +1,961 @@
+openapi: 3.1.0
+info:
+  title: Star Drift API
+  description: >-
+    Backend API for Star Drift: an interactive viewer for exploring NASA SPHEREx
+    sky images across observation epochs and 102 near-infrared spectral bands.
+  version: 0.1.0
+servers:
+  - url: /api
+    description: Star Drift API base path
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      description: Returns service status for deployment monitoring and smoke tests.
+      operationId: getHealth
+      responses:
+        '200':
+          description: Service is healthy.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /meta:
+    get:
+      summary: Mission and archive metadata
+      description: >-
+        Returns current data release provenance, field-of-view limits, supported
+        bands, and epoch definitions.
+      operationId: getMeta
+      parameters:
+        - name: include_bands
+          in: query
+          description: Include nominal wavelengths from the published spectral calibration.
+          schema: {type: boolean, default: false}
+        - name: epoch
+          in: query
+          description: Survey selection for spectral calibration.
+          schema: {type: string, enum: ['1', '2', '3', '4', all], default: all}
+      responses:
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '200':
+          description: Metadata successfully retrieved.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MetaResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '503':
+          description: The requested spectral calibration is unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /cutout:
+    get:
+      summary: Reprojected cutout image
+      description: >-
+        Reprojects calibrated SPHEREx exposures onto the requested north-up sky grid.
+        An all-surveys request can fall back to the SPHEREx DR1 All-Sky Cube, which
+        combines Surveys 1 and 2. The response identifies the source in its header.
+      operationId: getCutout
+      parameters:
+        - name: ra
+          in: query
+          required: true
+          description: Center right ascension in decimal degrees (ICRS).
+          schema:
+            type: number
+            minimum: 0.0
+            exclusiveMaximum: 360.0
+          example: 150.12
+        - name: dec
+          in: query
+          required: true
+          description: Center declination in decimal degrees (ICRS).
+          schema:
+            type: number
+            minimum: -90.0
+            maximum: 90.0
+          example: 2.34
+        - name: fov
+          in: query
+          required: false
+          description: Field of view width and height in degrees.
+          schema:
+            type: number
+            minimum: 0.05
+            maximum: 1.0
+            default: 0.2
+          example: 0.2
+        - name: epoch
+          in: query
+          required: false
+          description: Survey epoch number (1-4) or 'all' for an all-epoch coadd.
+          schema:
+            type: string
+            enum: ['1', '2', '3', '4', 'all']
+            default: 'all'
+          example: '1'
+        - name: band
+          in: query
+          required: false
+          description: Global spectral band index (1 to 102). Defaults to 4 in single-band mode.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 102
+          example: 4
+        - name: detector
+          in: query
+          required: false
+          description: Detector array index (1 to 6). Required in stack mode.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 6
+          example: 1
+        - name: mode
+          in: query
+          required: false
+          description: Coadd mode - 'single' for one band, 'stack' for all 17 bands of a detector.
+          schema:
+            type: string
+            enum: [single, stack]
+            default: single
+          example: single
+        - name: mask_flags
+          in: query
+          required: false
+          description: Whether to exclude flagged bad pixels during coaddition.
+          schema:
+            type: boolean
+            default: true
+        - name: format
+          in: query
+          required: false
+          description: Payload format - 'binary' for binary float32 payload with JSON header, or 'json' for JSON representation.
+          schema:
+            type: string
+            enum: [binary, json]
+            default: binary
+        - name: If-None-Match
+          in: header
+          required: false
+          schema:
+            type: string
+        - name: wait_for_live
+          in: query
+          description: Give the live cutout its full time budget before trying the DR1 fallback.
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '304':
+          description: The binary cutout's ETag matched.
+        '200':
+          description: Cutout image and grid WCS metadata.
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+                description: SPX1 v1.0 contains a length-prefixed JSON header, gzip float32 pixels and optional gzip uint32 flags.
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CutoutJsonResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/InternalError'
+        '504':
+          $ref: '#/components/responses/InternalError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /flags:
+    get:
+      summary: Decoded quality flags for a view
+      description: Returns decoded quality-flag categories and pixel-level mask information for a view.
+      operationId: getFlags
+      parameters:
+        - name: ra
+          in: query
+          required: true
+          schema:
+            type: number
+            minimum: 0.0
+            exclusiveMaximum: 360.0
+        - name: dec
+          in: query
+          required: true
+          schema:
+            type: number
+            minimum: -90.0
+            maximum: 90.0
+        - name: fov
+          in: query
+          required: false
+          schema:
+            type: number
+            minimum: 0.05
+            maximum: 1.0
+            default: 0.2
+        - name: epoch
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: ['1', '2', '3', '4', 'all']
+            default: 'all'
+        - name: band
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 102
+        - name: detector
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 6
+      responses:
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '200':
+          description: Decoded flags summary.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FlagsResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /spectrum:
+    get:
+      summary: Spectral flux extraction at a point
+      description: >-
+        Extracts calibrated flux across all 102 SPHEREx channels at a given celestial position.
+      operationId: getSpectrum
+      parameters:
+        - name: ra
+          in: query
+          required: true
+          schema:
+            type: number
+            minimum: 0.0
+            exclusiveMaximum: 360.0
+        - name: dec
+          in: query
+          required: true
+          schema:
+            type: number
+            minimum: -90.0
+            maximum: 90.0
+        - name: aperture
+          in: query
+          required: false
+          description: Extraction aperture radius in arcseconds (default 6.15 arcsec = 1 pixel).
+          schema:
+            type: number
+            default: 6.15
+        - name: epoch
+          in: query
+          required: false
+          description: Filter by survey epoch ('1'..'4' or 'all').
+          schema:
+            type: string
+            enum: ['1', '2', '3', '4', 'all']
+            default: 'all'
+      responses:
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '200':
+          description: Extracted spectrum points.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SpectrumResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /catalog:
+    get:
+      summary: Overlay sources from astronomical catalogs
+      description: Cone search for reference sources from Gaia DR3, WISE, or SIMBAD.
+      operationId: getCatalog
+      parameters:
+        - name: ra
+          in: query
+          required: true
+          schema:
+            type: number
+            minimum: 0.0
+            exclusiveMaximum: 360.0
+        - name: dec
+          in: query
+          required: true
+          schema:
+            type: number
+            minimum: -90.0
+            maximum: 90.0
+        - name: radius
+          in: query
+          required: false
+          description: Cone search radius in degrees.
+          schema:
+            type: number
+            minimum: 0.01
+            maximum: 1.0
+            default: 0.1
+        - name: catalog
+          in: query
+          required: false
+          description: Target catalog.
+          schema:
+            type: string
+            enum: [gaia, wise, simbad]
+            default: gaia
+        - name: mag_limit
+          in: query
+          required: false
+          description: Faintest magnitude to return in Gaia G, AllWISE W1, or SIMBAD V.
+          schema:
+            type: number
+            minimum: -30
+            maximum: 40
+      responses:
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '200':
+          description: Up to 800 catalog source records.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CatalogResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+        '503':
+          description: The selected upstream catalog is unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /resolve:
+    get:
+      summary: Name resolution to sky coordinates
+      description: Resolves an astronomical object name (e.g. 'M31', 'Vega') to ICRS RA and Dec via SIMBAD.
+      operationId: resolveName
+      parameters:
+        - name: name
+          in: query
+          required: true
+          description: Object name or identifier.
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 120
+          example: 'Vega'
+      responses:
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '200':
+          description: Target coordinates found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResolveResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '503':
+          description: The name resolver is unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /cache/stats:
+    get:
+      summary: Inspect the SPHEREx cutout cache
+      operationId: getCacheStats
+      security: [{cacheAdmin: []}]
+      responses:
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '200':
+          description: Cache metrics and configuration.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+
+  /cache/invalidate:
+    post:
+      summary: Manually invalidate old cache release namespaces
+      operationId: invalidateCache
+      security: [{cacheAdmin: []}]
+      parameters:
+        - name: release
+          in: query
+          description: The current archive revision to retain. Defaults to the active revision.
+          schema:
+            type: string
+      responses:
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/InternalError'
+        '200':
+          description: Invalidation result.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, purged_entries, current_release]
+                properties:
+                  status:
+                    const: ok
+                  purged_entries:
+                    type: integer
+                  current_release:
+                    type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+components:
+  securitySchemes:
+    cacheAdmin:
+      type: http
+      scheme: bearer
+  schemas:
+    HealthResponse:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          example: 'ok'
+
+    ErrorDetail:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          description: Machine-readable error code.
+          enum:
+            - INVALID_COORDINATES
+            - FOV_OUT_OF_RANGE
+            - INVALID_BAND
+            - INVALID_EPOCH
+            - INVALID_DETECTOR
+            - INVALID_PARAMETER
+            - FORBIDDEN
+            - NO_COVERAGE
+            - OBJECT_NOT_FOUND
+            - SERVICE_UNAVAILABLE
+            - UPSTREAM_TIMEOUT
+            - RATE_LIMIT_EXCEEDED
+            - INTERNAL_ERROR
+          example: INVALID_COORDINATES
+        message:
+          type: string
+          description: Human-readable error description.
+          example: 'Right ascension must be between 0 and 360 degrees.'
+        details:
+          type: object
+          additionalProperties: true
+          description: Optional additional context.
+
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          $ref: '#/components/schemas/ErrorDetail'
+
+    FovLimits:
+      type: object
+      required: [min_deg, max_deg, default_deg]
+      properties:
+        min_deg:
+          type: number
+          example: 0.05
+        max_deg:
+          type: number
+          example: 1.0
+        default_deg:
+          type: number
+          example: 0.2
+
+    SupportedBands:
+      type: object
+      required: [total_bands, detectors, channels_per_detector, wavelength_range_um]
+      properties:
+        total_bands:
+          type: integer
+          example: 102
+        detectors:
+          type: integer
+          example: 6
+        channels_per_detector:
+          type: integer
+          example: 17
+        bands:
+          type: array
+          items:
+            $ref: '#/components/schemas/BandInfo'
+        wavelength_range_um:
+          type: array
+          items:
+            type: number
+          minItems: 2
+          maxItems: 2
+          example: [0.75, 5.0]
+
+    BandInfo:
+      type: object
+      required: [band, detector, channel, wavelength_um]
+      properties:
+        band: {type: integer, minimum: 1, maximum: 102}
+        detector: {type: integer, minimum: 1, maximum: 6}
+        channel: {type: integer, minimum: 1, maximum: 17}
+        wavelength_um: {type: number, exclusiveMinimum: 0}
+
+    EpochInfo:
+      type: object
+      required: [id, name, time_range]
+      properties:
+        id:
+          type: string
+          example: '4'
+        name:
+          type: string
+          example: 'Survey 4 (Scope fixture)'
+        collection: {type: string}
+        pointing_angle_deg: {type: number}
+        time_range:
+          type: object
+          properties:
+            mjd_start:
+              type: number
+              example: 61186.359738
+            mjd_end:
+              type: number
+              example: 61186.361248
+            utc_start:
+              type: string
+              example: '2026-05-26T08:38:01.363200Z'
+            utc_end:
+              type: string
+              example: '2026-05-26T08:40:11.827200Z'
+
+    MetaResponse:
+      type: object
+      required: [data_release, coverage_notes, fov_limits, supported_bands, epochs]
+      properties:
+        data_release:
+          type: string
+          example: 'spherex_qr3'
+        coverage_notes:
+          type: string
+          example: 'SPHEREx Quick Release 3 (QR3) wide survey and deep fields.'
+        fov_limits:
+          $ref: '#/components/schemas/FovLimits'
+        supported_bands:
+          $ref: '#/components/schemas/SupportedBands'
+        collections:
+          type: array
+          items: {type: string}
+        pixel_scale_arcsec:
+          type: number
+        epochs:
+          type: array
+          items:
+            $ref: '#/components/schemas/EpochInfo'
+
+    WcsHeader:
+      type: object
+      required: [crval, crpix, cdelt, ctype, radesys, shape]
+      properties:
+        crval:
+          type: array
+          items:
+            type: number
+          description: Reference point coordinate [ra_deg, dec_deg]
+          example: [150.12, 2.34]
+        crpix:
+          type: array
+          items:
+            type: number
+          description: Reference pixel coordinate [x, y]
+          example: [18.5, 18.5]
+        cdelt:
+          type: array
+          items:
+            type: number
+          description: Pixel scale in degrees [cdelt1, cdelt2]
+          example: [-0.001708333, 0.001708333]
+        ctype:
+          type: array
+          items:
+            type: string
+          example: ['RA---TAN', 'DEC--TAN']
+        radesys:
+          type: string
+          example: 'ICRS'
+        shape:
+          type: array
+          items:
+            type: integer
+          description: '[height, width] in pixels'
+          example: [36, 36]
+
+    CutoutHeader:
+      type: object
+      required: [version, data_release, wcs, bunit, wavelength_um]
+      properties:
+        version:
+          type: string
+          example: '1.0'
+        data_release:
+          type: string
+          example: 'QR3'
+        wcs:
+          $ref: '#/components/schemas/WcsHeader'
+        bunit:
+          type: string
+          example: 'MJy/sr'
+        detector:
+          type: integer
+          example: 1
+        channel:
+          type: integer
+          example: 4
+        band:
+          type: integer
+          example: 4
+        wavelength_um:
+          type: number
+          example: 0.809
+        bandwidth_um:
+          type: number
+          example: 0.02
+        nexp:
+          type: integer
+          description: Number of exposures combined in this coadd.
+          example: 2
+        epoch:
+          type: string
+          example: '1'
+        mjd_range:
+          type: array
+          items:
+            type: number
+          example: [61186.3597, 61186.3612]
+        source:
+          type: string
+          enum: [irsa, dr1-cube]
+        collections:
+          type: array
+          items: {type: string}
+        exposure_ids:
+          type: array
+          items: {type: string}
+        exposures:
+          type: array
+          items:
+            type: object
+            required: [id, collection, processing_version, mjd]
+            properties:
+              id: {type: string}
+              collection: {type: string}
+              processing_version: {type: [string, 'null']}
+              mjd: {type: number}
+        exposure_mjd:
+          type: array
+          items: {type: number}
+        wavelength_range_um:
+          type: array
+          items: {type: number}
+        flagged_fraction: {type: number, minimum: 0, maximum: 1}
+        coverage_fraction: {type: number, minimum: 0, maximum: 1}
+        mask_flags: {type: boolean}
+        photometric_normalized: {type: boolean}
+        warnings:
+          type: array
+          items: {type: string}
+        flags_summary:
+          type: object
+          additionalProperties:
+            type: integer
+
+    CutoutJsonResponse:
+      type: object
+      required: [header, data]
+      properties:
+        header:
+          $ref: '#/components/schemas/CutoutHeader'
+        data:
+          type: array
+          items:
+            type: array
+            items:
+              type: [number, 'null']
+          description: 2D array of flux values (height x width).
+
+    FlagsResponse:
+      type: object
+      required: [categories_present, total_pixels, flagged_pixels, flag_summary]
+      properties:
+        categories_present:
+          type: array
+          items:
+            type: string
+          example: ['cosmic_ray', 'source']
+        total_pixels:
+          type: integer
+          example: 1296
+        flagged_pixels:
+          type: integer
+          example: 32
+        flag_summary:
+          type: object
+          additionalProperties:
+            type: integer
+          example:
+            cosmic_ray: 12
+            source: 20
+        bitmask_definitions:
+          type: object
+          additionalProperties:
+            type: string
+          example:
+            '0': 'Dead pixel'
+            '21': 'Known source'
+            '28': 'Optical halo'
+
+    SpectrumPoint:
+      type: object
+      required: [wavelength_um, flux, uncertainty, exposure_id, detector, channel, band_index, flagged, flags]
+      properties:
+        wavelength_um:
+          type: number
+          example: 0.809
+        flux:
+          type: number
+          example: 1.42
+        flux_unit:
+          type: string
+          default: 'MJy/sr'
+        uncertainty:
+          type: number
+          example: 0.08
+        exposure_id:
+          type: string
+          example: 'level2_2026W22_1A_0214_1D1'
+        detector:
+          type: integer
+          example: 1
+        channel:
+          type: integer
+          example: 4
+        band_index:
+          type: integer
+          example: 4
+        flagged:
+          type: boolean
+          example: false
+        flags:
+          type: array
+          items:
+            type: string
+          example: []
+
+    SpectrumResponse:
+      type: object
+      required: [ra, dec, aperture_arcsec, epoch, points]
+      properties:
+        ra:
+          type: number
+          example: 150.12
+        dec:
+          type: number
+          example: 2.34
+        aperture_arcsec:
+          type: number
+          example: 6.15
+        epoch:
+          type: string
+          example: 'all'
+        points:
+          type: array
+          items:
+            $ref: '#/components/schemas/SpectrumPoint'
+
+    CatalogSource:
+      type: object
+      required: [id, name, ra, dec, catalog]
+      properties:
+        id:
+          type: string
+          example: 'Gaia DR3 381928471928371'
+        name:
+          type: string
+          example: 'HD 87152'
+        ra:
+          type: number
+          example: 150.121
+        dec:
+          type: number
+          example: 2.339
+        catalog:
+          type: string
+          example: 'gaia'
+        magnitude:
+          type: number
+          example: 11.24
+        mag_band:
+          type: string
+          example: 'G'
+        details:
+          type: object
+          additionalProperties: true
+          example:
+            parallax_mas: 4.82
+            pmra_mas_yr: -12.4
+            pmdec_mas_yr: 6.1
+
+    CatalogResponse:
+      type: object
+      required: [catalog, count, sources]
+      properties:
+        truncated:
+          type: boolean
+          description: More rows matched than the response limit.
+        catalog:
+          type: string
+          example: 'gaia'
+        count:
+          type: integer
+          example: 1
+        sources:
+          type: array
+          items:
+            $ref: '#/components/schemas/CatalogSource'
+
+    ResolveResponse:
+      type: object
+      required: [name, ra, dec, resolver]
+      properties:
+        name:
+          type: string
+          example: 'Vega'
+        ra:
+          type: number
+          example: 279.23473
+        dec:
+          type: number
+          example: 38.78369
+        resolver:
+          type: string
+          example: 'SIMBAD'
+
+  responses:
+    Forbidden:
+      description: Cache administration requires an authorized bearer token.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    BadRequest:
+      description: Invalid request parameters.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: INVALID_COORDINATES
+              message: 'Right ascension 400.0 is out of valid range [0.0, 360.0).'
+              details:
+                field: ra
+                value: 400.0
+
+    NotFound:
+      description: Requested resource or sky area not found.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: NO_COVERAGE
+              message: 'No SPHEREx exposures cover the requested coordinates and epoch.'
+              details:
+                ra: 150.12
+                dec: 2.34
+                epoch: '4'
+
+    RateLimited:
+      description: Request limit exceeded.
+      headers:
+        Retry-After:
+          description: Number of seconds to wait before retrying.
+          schema:
+            type: integer
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: RATE_LIMIT_EXCEEDED
+              message: 'Rate limit of 60 requests per minute exceeded.'
+
+    InternalError:
+      description: Server error or upstream failure.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: INTERNAL_ERROR
+              message: 'Internal server error processing cutout.'

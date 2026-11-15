@@ -1,0 +1,26 @@
+{
+  "width": 293,
+  "height": 293,
+  "wcs": {
+    "projection": "TAN",
+    "frame": "ICRS",
+    "referencePixel": [
+      147.0,
+      147.0
+    ],
+    "referenceDegrees": [
+      10.68479292,
+      41.269065
+    ],
+    "degreesPerPixel": [
+      -0.0017083333333333,
+      0.0017083333333333
+    ]
+  },
+  "release": null,
+  "unit": "MJy/sr",
+  "detector": 1,
+  "channel": 4,
+  "wavelengthMicrons": 0.809,
+  "exposureMjd": []
+}

@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Node
+node_modules/
+dist/
+
+# Environment files hold secrets, never commit them
+.env
+.env.*
+!.env.example
+
+# Cache of downloaded and processed sky data (can be large)
+.cache/
+data/
+
+# OS and editor
+.DS_Store
+.vscode/
+.idea/
+
+.devcontainer/

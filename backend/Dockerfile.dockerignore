@@ -1,0 +1,11 @@
+**
+!backend/
+!backend/requirements.txt
+!backend/app/
+!backend/app/**
+!shared/
+!shared/openapi.json
+!shared/fixtures/
+!shared/fixtures/mock/
+!shared/fixtures/mock/**
+**/__pycache__/

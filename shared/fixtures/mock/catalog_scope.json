@@ -1,0 +1,62 @@
+{
+  "catalog": "gaia",
+  "count": 4,
+  "sources": [
+    {
+      "id": "Gaia DR3 381928471928371",
+      "name": "HD 87152",
+      "ra": 150.1208,
+      "dec": 2.3402,
+      "catalog": "gaia",
+      "magnitude": 10.45,
+      "mag_band": "G",
+      "details": {
+        "pmra": -14.2,
+        "pmdec": 3.8,
+        "parallax": 5.12
+      }
+    },
+    {
+      "id": "Gaia DR3 381928471928399",
+      "name": "TYC 241-119-1",
+      "ra": 150.145,
+      "dec": 2.361,
+      "catalog": "gaia",
+      "magnitude": 12.18,
+      "mag_band": "G",
+      "details": {
+        "pmra": -2.1,
+        "pmdec": -8.4,
+        "parallax": 2.31
+      }
+    },
+    {
+      "id": "WISE J100028.9+022024",
+      "name": "WISE J100028.9+022024",
+      "ra": 150.1205,
+      "dec": 2.3401,
+      "catalog": "wise",
+      "magnitude": 9.82,
+      "mag_band": "W1",
+      "details": {
+        "w1": 9.82,
+        "w2": 9.75,
+        "w3": 9.6,
+        "w4": 8.9
+      }
+    },
+    {
+      "id": "SIMBAD-HD87152",
+      "name": "HD 87152",
+      "ra": 150.1208,
+      "dec": 2.3402,
+      "catalog": "simbad",
+      "magnitude": 10.45,
+      "mag_band": "V",
+      "details": {
+        "otype": "Star",
+        "sp_type": "G5V"
+      }
+    }
+  ]
+}

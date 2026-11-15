@@ -1,0 +1,26 @@
+{
+  "Vega": {
+    "name": "Vega",
+    "ra": 279.23473,
+    "dec": 38.78369,
+    "resolver": "SIMBAD"
+  },
+  "M31": {
+    "name": "M31",
+    "ra": 10.68471,
+    "dec": 41.26875,
+    "resolver": "SIMBAD"
+  },
+  "Crab Nebula": {
+    "name": "Crab Nebula",
+    "ra": 83.63308,
+    "dec": 22.0145,
+    "resolver": "SIMBAD"
+  },
+  "HD 87152": {
+    "name": "HD 87152",
+    "ra": 150.1208,
+    "dec": 2.3402,
+    "resolver": "SIMBAD"
+  }
+}
